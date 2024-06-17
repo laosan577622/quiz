@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老三AI问答 Web</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .question {
+            margin-bottom: 20px;
+        }
+        .question h2 {
+            margin-bottom: 10px;
+        }
+        .options {
+            list-style-type: none;
+            padding: 0;
+        }
+        .options li {
+            margin-bottom: 10px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            color: white;
+            background-color: #007BFF;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+        }
+        .explanation {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>老三AI问答 Webui</h1>
+        <div id="quiz"></div>
+        <div id="result" class="result"></div>
+    </div>
+    <script>
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let correctCount = 0;
+        let incorrectQuestions = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('/get_questions')
+                .then(response => response.json())
+                .then(data => {
+                    questions = data;
+                    showQuestion();
+                })
+                .catch(error => console.error('Error:', error));
+        });
+
+        function showQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                showResult();
+                return;
+            }
+
+            const question = questions[currentQuestionIndex];
+            const quizDiv = document.getElementById('quiz');
+            quizDiv.innerHTML = `
+                <div class="question">
+                    <h2>题目 ${question.number}:</h2>
+                    <p>${question.content}</p>
+                    ${question.options ? `<ul class="options">${question.options.map(option => `<li>${option}</li>`).join('')}</ul>` : ''}
+                    <input type="text" id="answer" placeholder="请输入你的答案">
+                    <button class="btn" onclick="submitAnswer()">提交答案</button>
+                </div>
+            `;
+        }
+
+        function submitAnswer() {
+            const answerInput = document.getElementById('answer');
+            const userAnswer = answerInput.value.trim();
+            const question = questions[currentQuestionIndex];
+
+            fetch('/submit_answer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ question, answer: userAnswer }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.correct) {
+                        correctCount++;
+                    } else {
+                        incorrectQuestions.push(question);
+                    }
+                    currentQuestionIndex++;
+                    showQuestion();
+                });
+        }
+
+        function showResult() {
+            const resultDiv = document.getElementById('result');
+            const accuracy = (correctCount / questions.length) * 100;
+            resultDiv.innerHTML = `
+                <p>你总共回答了 ${questions.length} 道题目，其中 ${correctCount} 道回答正确。</p>
+                <p>因此，你的正确率为：${accuracy.toFixed(2)}%。</p>
+                ${incorrectQuestions.length > 0 ? '<button class="btn" onclick="showExplanations()">查看错题讲解</button>' : ''}
+            `;
+        }
+
+        function showExplanations() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML += `<p>请稍候，正在向ChatGPT请求讲解...</p>`;
+            incorrectQuestions.forEach(question => {
+                const explanationDiv = document.createElement('div');
+                explanationDiv.classList.add('explanation');
+                explanationDiv.innerHTML = `
+                    <h2>题目 ${question.number}:</h2>
+                    <p>${question.content}</p>
+                    ${question.options ? `<ul class="options">${question.options.map(option => `<li>${option}</li>`).join('')}</ul>` : ''}
+                    <p>正确答案是：${question.answer}</p>
+                    <p>ChatGPT的讲解：<span id="explanation-${question.number}"></span></p>
+                `;
+                resultDiv.appendChild(explanationDiv);
+
+                fetch('/explain', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question }),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById(`explanation-${question.number}`).innerHTML = data.explanation;
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
