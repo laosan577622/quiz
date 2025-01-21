@@ -1,21 +1,24 @@
 [
   {
     "number": "1",
-    "content": "test1",
-    "answer": "1",
-    "requirement": "简答_包含关键字"
+    "content": "冰变成水时是放出还是吸收热量？",
+    "answer": "吸收",
+    "requirement": "必须相同",
+    "type": "简答"
   },
   {
     "number": "2",
-    "content": "测试题目二",
-    "answer": "2",
-    "requirement": "简答_完全符合"
+    "content": "中国人民共和国在哪一年成立？",
+    "options": ["1900", "1949", "1948", "1947", "1946"],
+    "answer": "1949",
+    "requirement": "选择_完全符合",
+    "type": "选择"
   },
   {
     "number": "3",
-    "content": "3",
-    "answer": "3",
-    "requirement": "简答_包含关键字"
+    "content": "相较于python，C有什么优势？",
+    "answer": "请根据用户回答自行判断，但必须有关于C语言的优势并且一定要比较",
+    "requirement": "包含关键字",
+    "type": "简答"
   }
-  
 ]

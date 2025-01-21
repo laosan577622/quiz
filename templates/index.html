@@ -1,159 +1,271 @@
 <!DOCTYPE html>
-<html lang="cn">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>老三AI问答 Web</title>
+    <title>知识问答</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
+            font-family: 'Microsoft YaHei', sans-serif; /* 使用微软雅黑字体 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: /*实现蓝白渐变背景*/ linear-gradient(45deg, #0088ff, #ffffff);
+            background-size: cover;
         }
+
         .container {
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-            background: white;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.2); /* 半透明白色背景 */
+            border-radius: 15px; /* 圆角 */
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37); /* 阴影效果 */
+            backdrop-filter: blur(10px); /* 毛玻璃效果 */
+            -webkit-backdrop-filter: blur(10px); /* 兼容 WebKit 内核 */
+            padding: 30px 40px;
+            color: #333; /* 深色字体 */
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
         }
-        .question {
+
+        h1 {
+            font-size: 2.5em;
             margin-bottom: 20px;
         }
-        .question h2 {
-            margin-bottom: 10px;
+
+        p {
+            font-size: 1.2em;
+            margin: 10px 0;
         }
-        .options {
-            list-style-type: none;
-            padding: 0;
+
+        input[type="text"] {
+            width: 80%;
+            padding: 10px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            font-size: 1.1em;
         }
-        .options li {
-            margin-bottom: 10px;
-        }
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
+
+        button {
+            background-color: #0078D7; /* 微软蓝 */
             color: white;
-            background-color: #007BFF;
             border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 1.1em;
             cursor: pointer;
-            text-align: center;
+            transition: all 0.3s ease;
+            margin: 10px;
         }
-        .btn:hover {
-            background-color: #0056b3;
+
+        button:hover {
+            background-color: #005a9e;
         }
-        .result {
-            margin-top: 20px;
+
+        #ask-ai-button {
+            display: none;
+            background-color: #4CAF50; /* 绿色按钮 */
         }
+        #ask-ai-button:hover{
+            background-color: #367c39;
+        }
+
+        #accuracy {
+            font-weight: bold;
+            color: #0078D7;
+        }
+
         .explanation {
             margin-top: 20px;
+            text-align: left;
+        }
+
+        .options {
+            margin: 20px 0;
+        }
+
+        .option {
+            margin: 10px 0;
+        }
+
+        #loading {
+            display: none;
+            font-size: 1.2em;
+            color: #0078D7;
+            margin-top: 20px;
+        }
+
+        #error-message {
+            display: none;
+            font-size: 1.2em;
+            color: red;
+            margin-top: 10px;
         }
     </style>
-</head>
-<body>
-    <div class="container">
-        <h1>老三AI问答 Webui</h1>
-        <div id="quiz"></div>
-        <div id="result" class="result"></div>
-    </div>
     <script>
         let questions = [];
         let currentQuestionIndex = 0;
         let correctCount = 0;
         let incorrectQuestions = [];
 
-        document.addEventListener('DOMContentLoaded', () => {
+        function loadQuestions() {
             fetch('/get_questions')
                 .then(response => response.json())
                 .then(data => {
                     questions = data;
                     showQuestion();
-                })
-                .catch(error => console.error('Error:', error));
-        });
+                });
+        }
 
         function showQuestion() {
-            if (currentQuestionIndex >= questions.length) {
-                showResult();
-                return;
-            }
+            if (currentQuestionIndex < questions.length) {
+                const question = questions[currentQuestionIndex];
+                document.getElementById('question-number').textContent = `问题 ${question.number}`;
+                document.getElementById('question-content').textContent = question.content;
+                document.getElementById('result').textContent = '';
+                document.getElementById('explanation').textContent = '';
+                document.getElementById('loading').style.display = 'none'; // 隐藏加载提示
+                document.getElementById('error-message').style.display = 'none'; // 隐藏错误提示
 
-            const question = questions[currentQuestionIndex];
-            const quizDiv = document.getElementById('quiz');
-            quizDiv.innerHTML = `
-                <div class="question">
-                    <h2>题目 ${question.number}:</h2>
-                    <p>${question.content}</p>
-                    ${question.options ? `<ul class="options">${question.options.map(option => `<li>${option}</li>`).join('')}</ul>` : ''}
-                    <input type="text" id="answer" placeholder="请输入你的答案">
-                    <button class="btn" onclick="submitAnswer()">提交答案</button>
-                </div>
-            `;
+                if (question.type === '简答') {
+                    document.getElementById('user-answer').style.display = 'block';
+                    document.getElementById('options').style.display = 'none';
+                    document.getElementById('user-answer').value = ''; // 清除输入框内容
+                } else if (question.type === '选择') {
+                    document.getElementById('user-answer').style.display = 'none';
+                    document.getElementById('options').style.display = 'block';
+                    const optionsContainer = document.getElementById('options');
+                    optionsContainer.innerHTML = '';
+                    question.options.forEach(option => {
+                        const optionElement = document.createElement('div');
+                        optionElement.className = 'option';
+                        optionElement.innerHTML = `
+                            <input type="radio" name="option" value="${option}" id="option-${option}">
+                            <label for="option-${option}">${option}</label>
+                        `;
+                        optionsContainer.appendChild(optionElement);
+                    });
+                }
+            } else {
+                document.getElementById('question-number').textContent = '问答已完成';
+                document.getElementById('question-content').textContent = '';
+                document.getElementById('user-answer').style.display = 'none';
+                document.getElementById('options').style.display = 'none';
+                document.getElementById('submit-button').style.display = 'none';
+                document.getElementById('result').textContent = '感谢您完成本次问答！';
+                document.getElementById('accuracy').textContent = `正确率: ${calculateAccuracy()}%`; // 显示正确率
+                document.getElementById('ask-ai-button').style.display = 'block'; // 显示询问AI按钮
+            }
         }
 
         function submitAnswer() {
-            const answerInput = document.getElementById('answer');
-            const userAnswer = answerInput.value.trim();
+            let userAnswer;
             const question = questions[currentQuestionIndex];
+
+            if (question.type === '简答') {
+                userAnswer = document.getElementById('user-answer').value.trim();
+                if (userAnswer === '') {
+                    document.getElementById('error-message').textContent = '请输入您的答案';
+                    document.getElementById('error-message').style.display = 'block';
+                    return;
+                }
+            } else if (question.type === '选择') {
+                const selectedOption = document.querySelector('input[name="option"]:checked');
+                if (selectedOption) {
+                    userAnswer = selectedOption.value;
+                } else {
+                    alert('请选择一个选项');
+                    return;
+                }
+            }
+
+            document.getElementById('loading').style.display = 'block'; // 显示加载提示
 
             fetch('/submit_answer', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ question, answer: userAnswer }),
+                body: JSON.stringify({ question: question, user_answer: userAnswer })
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.correct) {
-                        correctCount++;
-                    } else {
-                        incorrectQuestions.push(question);
-                    }
-                    currentQuestionIndex++;
-                    showQuestion();
-                });
-        }
-
-        function showResult() {
-            const resultDiv = document.getElementById('result');
-            const accuracy = (correctCount / questions.length) * 100;
-            resultDiv.innerHTML = `
-                <p>你总共回答了 ${questions.length} 道题目，其中 ${correctCount} 道回答正确。</p>
-                <p>因此，你的正确率为：${accuracy.toFixed(2)}%。</p>
-                ${incorrectQuestions.length > 0 ? '<button class="btn" onclick="showExplanations()">查看错题讲解</button>' : ''}
-            `;
-        }
-
-        function showExplanations() {
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML += `<p>请稍候，正在向ChatGPT请求讲解...</p>`;
-            incorrectQuestions.forEach(question => {
-                const explanationDiv = document.createElement('div');
-                explanationDiv.classList.add('explanation');
-                explanationDiv.innerHTML = `
-                    <h2>题目 ${question.number}:</h2>
-                    <p>${question.content}</p>
-                    ${question.options ? `<ul class="options">${question.options.map(option => `<li>${option}</li>`).join('')}</ul>` : ''}
-                    <p>正确答案是：${question.answer}</p>
-                    <p>ChatGPT的讲解：<span id="explanation-${question.number}"></span></p>
-                `;
-                resultDiv.appendChild(explanationDiv);
-
-                fetch('/explain', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ question }),
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        document.getElementById(`explanation-${question.number}`).innerHTML = data.explanation;
-                    });
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none'; // 隐藏加载提示
+                document.getElementById('error-message').style.display = 'none'; // 隐藏错误提示
+                if (data.is_correct) {
+                    document.getElementById('result').textContent = '正确!';
+                    correctCount++;
+                } else {
+                    document.getElementById('result').textContent = '错误!';
+                    incorrectQuestions.push({ question: question, user_answer: userAnswer });
+                }
+                currentQuestionIndex++;
+                showQuestion();
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none'; // 隐藏加载提示
+                console.error('Error submitting answer:', error);
+                document.getElementById('result').textContent = '提交答案时出错，请重试。';
             });
         }
+
+        function explainAnswer() {
+            if (incorrectQuestions.length === 0) {
+                document.getElementById('explanation').textContent = '没有错题需要解释。';
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block'; // 显示加载提示
+
+            fetch('/explain', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ incorrect_questions: incorrectQuestions })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none'; // 隐藏加载提示
+                if (data.explanations) {
+                    let explanationsText = '';
+                    data.explanations.forEach(explanation => {
+                        explanationsText += `<div class="explanation"><strong>题目 ${explanation.question.number}:</strong> ${explanation.explanation}</div>`;
+                    });
+                    document.getElementById('explanation').innerHTML = explanationsText;
+                } else {
+                    document.getElementById('explanation').textContent = data.explanation;
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none'; // 隐藏加载提示
+                console.error('Error explaining answers:', error);
+                document.getElementById('explanation').textContent = '获取解释时出错，请重试。';
+            });
+        }
+
+        function calculateAccuracy() {
+            return questions.length > 0 ? (correctCount / questions.length) * 100 : 0;
+        }
+
+        window.onload = loadQuestions;
     </script>
+</head>
+<body>
+    <div class="container">
+        <h1 id="question-number">问题 1</h1>
+        <p id="question-content">正在加载问题...</p>
+        <input type="text" id="user-answer" placeholder="请输入您的答案">
+        <div id="options" class="options"></div>
+        <button id="submit-button" onclick="submitAnswer()">提交</button>
+        <p id="result"></p>
+        <p id="loading">正在等待AI回应...</p>
+        <p id="error-message"></p>
+        <p id="explanation"></p>
+        <button id="ask-ai-button" onclick="explainAnswer()">询问 AI</button>
+        <p id="accuracy"></p>
+    </div>
 </body>
 </html>

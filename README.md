@@ -1,9 +1,7 @@
 # Flask 问答应用程序
 
-这是一个基于 Flask 的问答系统 web 应用程序。该应用程序允许用户回答问题，提交答案，并使用 OpenAI 的 ChatGPT 模型获取错误答案的解释。
+这是一个基于 Flask 的问答系统 web 应用程序。该应用程序允许用户回答问题，提交答案，并使用AI进行解释。
 
-## 程序截图
-![](https://cloud.577622.xyz/d/%E6%9C%AC%E6%9C%BA%E5%AD%98%E5%82%A8/github/quiz/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-06-17%20073443.png?sign=TrHXOMVGUvD4tFf-NW-vCww58VdS1Li5LHcs3--XF94=:0)
 
 ## 功能
 
@@ -16,7 +14,7 @@
 
 - Python 3.7 或更高版本
 - Flask
-- OpenAI Python 客户端库
+- Zhipuai 客户端库
 
 ## 安装
 
@@ -39,36 +37,41 @@
 1. 在根目录下创建 `config.ini` 文件，内容如下：
 
     ```ini
-    [openai]
+    [glm]
     api_key = YOUR_OPENAI_API_KEY
-    base_url = https://api.openai.com/v1
+    base_url = https://api.zhipuai.com/v1
+    model = glm-4
     ```
 
-    将 `YOUR_OPENAI_API_KEY` 替换为你的实际 OpenAI API 密钥。
+    将 `YOUR_OPENAI_API_KEY` 替换为你的实际 智谱AI 密钥。
 
 2. 确保在根目录下有一个问题文件（例如 `questions.json`），格式如下：
 
     ```json
-    [
+[
         {
             "number": "1",
-            "content": "test1",
-            "answer": "1",
-            "requirement": "简答_包含关键字"
+            "content": "冰变成水时是放出还是吸收热量？",
+            "answer": "吸收",
+            "requirement": "必须相同",
+            "type": "简答"
         },
         {
             "number": "2",
-            "content": "测试题目二",
-            "answer": "2",
-            "requirement": "简答_完全符合"
+            "content": "中国人民共和国在哪一年成立？",
+            "options": ["1900", "1949", "1948", "1947"],
+            "answer": "1949",
+            "requirement": "选择_完全符合",
+            "type": "选择"
         },
         {
             "number": "3",
-            "content": "3",
-            "answer": "3",
-            "requirement": "简答_包含关键字"
+            "content": "相较于python，C有什么优势？",
+            "answer": "请根据用户回答自行判断，但必须有关于C语言的优势并且一定要比较",
+            "requirement": "包含关键字",
+            "type": "简答"
         }
-    ]
+        ]
     ```
 
 ## 运行应用程序
@@ -86,35 +89,9 @@
 - 应用程序会逐个显示问答问题。
 - 输入你的答案并点击“提交答案”按钮提交。
 - 在所有问题回答完毕后，你会看到你的得分以及查看错误答案解释的选项。
-- 点击“查看错题讲解”按钮请求 ChatGPT 的解释。
 
-## 前端代码
 
-前端代码包含在 `templates` 目录下的 `index.html` 文件中。主要结构如下：
 
-```html
-<!DOCTYPE html>
-<html lang="cn">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>老三AI问答 Web</title>
-    <style>
-        /* 你的 CSS 样式 */
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>老三AI问答 Webui</h1>
-        <div id="quiz"></div>
-        <div id="result" class="result"></div>
-    </div>
-    <script>
-        // 你的 JavaScript 代码
-    </script>
-</body>
-</html>
-```
 
 ## API 端点
 
