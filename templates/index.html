@@ -1,271 +1,601 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>知识问答</title>
-    <style>
-        body {
-            font-family: 'Microsoft YaHei', sans-serif; /* 使用微软雅黑字体 */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: /*实现蓝白渐变背景*/ linear-gradient(45deg, #0088ff, #ffffff);
-            background-size: cover;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知识问答</title>
+  <style>
+    body {
+      font-family: 'Microsoft YaHei', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(45deg, #0088ff, #ffffff);
+      background-size: cover;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 15px;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 30px 40px;
+      color: #333;
+      text-align: center;
+      max-width: 600px;
+      width: 90%;
+      position: relative;
+    }
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 20px;
+    }
+    p {
+      font-size: 1.2em;
+      margin: 10px 0;
+    }
+    input[type="text"],
+    textarea {
+      width: 80%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.5);
+      font-size: 1.1em;
+    }
+    textarea {
+      resize: vertical;
+    }
+    button {
+      background-color: #0078D7;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-size: 1.1em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin: 10px;
+    }
+    button:hover {
+      background-color: #005a9e;
+    }
+    #ask-ai-button {
+      display: none;
+      background-color: #4CAF50;
+    }
+    #ask-ai-button:hover {
+      background-color: #367c39;
+    }
+    #accuracy {
+      font-weight: bold;
+      color: #0078D7;
+    }
+    .explanation {
+      margin-top: 20px;
+      text-align: left;
+    }
+    .options {
+      margin: 20px 0;
+    }
+    .option {
+      margin: 10px 0;
+    }
+    #loading {
+      display: none;
+      font-size: 1.2em;
+      color: #0078D7;
+      margin-top: 20px;
+    }
+    #error-message {
+      display: none;
+      font-size: 1.2em;
+      color: red;
+      margin-top: 10px;
+    }
+    /* 右上角管理按钮 */
+    #admin-buttons {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1100;
+    }
+    #admin-buttons button {
+      margin: 5px;
+      padding: 8px 12px;
+      font-size: 0.9em;
+    }
+    /* Modal 样式 */
+    .modal {
+      display: none; 
+      position: fixed;
+      z-index: 1200;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 5% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 600px;
+      position: relative;
+    }
+    .modal-content h2 {
+      margin-top: 0;
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      cursor: pointer;
+    }
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .modal form label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+    .modal form input[type="text"],
+    .modal form textarea,
+    .modal form select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .modal form button {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    /* 列表样式 */
+    #question-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+    .question-item {
+      border-bottom: 1px solid #ddd;
+      padding: 5px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .question-item:last-child {
+      border-bottom: none;
+    }
+    .question-item button {
+      padding: 5px 8px;
+      font-size: 0.8em;
+      margin-left: 5px;
+    }
+  </style>
+  <script>
+    let questions = [];
+    let currentQuestionIndex = 0;
+    let correctCount = 0;
+    let incorrectQuestions = [];
+
+    // 加载题目（调用 /get_questions 接口）
+    function loadQuestions() {
+      fetch('/get_questions')
+        .then(response => response.json())
+        .then(data => {
+          questions = data;
+          showQuestion();
+        });
+    }
+
+    function showQuestion() {
+      if (currentQuestionIndex < questions.length) {
+        const question = questions[currentQuestionIndex];
+        document.getElementById('question-number').textContent = `问题 ${question.number}`;
+        document.getElementById('question-content').textContent = question.content;
+        document.getElementById('result').textContent = '';
+        document.getElementById('explanation').textContent = '';
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-message').style.display = 'none';
+
+        if (question.type === '简答') {
+          document.getElementById('user-answer').style.display = 'block';
+          document.getElementById('options').style.display = 'none';
+          document.getElementById('user-answer').value = '';
+        } else if (question.type === '选择') {
+          document.getElementById('user-answer').style.display = 'none';
+          document.getElementById('options').style.display = 'block';
+          const optionsContainer = document.getElementById('options');
+          optionsContainer.innerHTML = '';
+          question.options.forEach(option => {
+            const optionElement = document.createElement('div');
+            optionElement.className = 'option';
+            optionElement.innerHTML = `
+              <input type="radio" name="option" value="${option}" id="option-${option}">
+              <label for="option-${option}">${option}</label>
+            `;
+            optionsContainer.appendChild(optionElement);
+          });
         }
+      } else {
+        document.getElementById('question-number').textContent = '问答已完成';
+        document.getElementById('question-content').textContent = '';
+        document.getElementById('user-answer').style.display = 'none';
+        document.getElementById('options').style.display = 'none';
+        document.getElementById('submit-button').style.display = 'none';
+        document.getElementById('result').textContent = '感谢您完成本次问答！';
+        document.getElementById('accuracy').textContent = `正确率: ${calculateAccuracy()}%`;
+        document.getElementById('ask-ai-button').style.display = 'block';
+      }
+    }
 
-        .container {
-            background: rgba(255, 255, 255, 0.2); /* 半透明白色背景 */
-            border-radius: 15px; /* 圆角 */
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37); /* 阴影效果 */
-            backdrop-filter: blur(10px); /* 毛玻璃效果 */
-            -webkit-backdrop-filter: blur(10px); /* 兼容 WebKit 内核 */
-            padding: 30px 40px;
-            color: #333; /* 深色字体 */
-            text-align: center;
-            max-width: 600px;
-            width: 90%;
+    function submitAnswer() {
+      let userAnswer;
+      const question = questions[currentQuestionIndex];
+
+      if (question.type === '简答') {
+        userAnswer = document.getElementById('user-answer').value.trim();
+        if (userAnswer === '') {
+          document.getElementById('error-message').textContent = '请输入您的答案';
+          document.getElementById('error-message').style.display = 'block';
+          return;
         }
-
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 20px;
+      } else if (question.type === '选择') {
+        const selectedOption = document.querySelector('input[name="option"]:checked');
+        if (selectedOption) {
+          userAnswer = selectedOption.value;
+        } else {
+          alert('请选择一个选项');
+          return;
         }
+      }
 
-        p {
-            font-size: 1.2em;
-            margin: 10px 0;
+      document.getElementById('loading').style.display = 'block';
+
+      fetch('/submit_answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question, user_answer: userAnswer })
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-message').style.display = 'none';
+        if (data.is_correct) {
+          document.getElementById('result').textContent = '正确!';
+          correctCount++;
+        } else {
+          document.getElementById('result').textContent = '错误!';
+          incorrectQuestions.push({ question: question, user_answer: userAnswer });
         }
+        currentQuestionIndex++;
+        showQuestion();
+      })
+      .catch(error => {
+        document.getElementById('loading').style.display = 'none';
+        console.error('Error submitting answer:', error);
+        document.getElementById('result').textContent = '提交答案时出错，请重试。';
+      });
+    }
 
-        input[type="text"] {
-            width: 80%;
-            padding: 10px;
-            margin: 20px 0;
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 5px;
-            background: rgba(255, 255, 255, 0.5);
-            font-size: 1.1em;
+    function explainAnswer() {
+      if (incorrectQuestions.length === 0) {
+        document.getElementById('explanation').textContent = '没有错题需要解释。';
+        return;
+      }
+
+      document.getElementById('loading').style.display = 'block';
+
+      fetch('/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incorrect_questions: incorrectQuestions })
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('loading').style.display = 'none';
+        if (data.explanations) {
+          let explanationsText = '';
+          data.explanations.forEach(explanation => {
+            explanationsText += `<div class="explanation"><strong>题目 ${explanation.question.number}:</strong> ${explanation.explanation}</div>`;
+          });
+          document.getElementById('explanation').innerHTML = explanationsText;
+        } else {
+          document.getElementById('explanation').textContent = data.explanation;
         }
+      })
+      .catch(error => {
+        document.getElementById('loading').style.display = 'none';
+        console.error('Error explaining answers:', error);
+        document.getElementById('explanation').textContent = '获取解释时出错，请重试。';
+      });
+    }
 
-        button {
-            background-color: #0078D7; /* 微软蓝 */
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 1.1em;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 10px;
+    function calculateAccuracy() {
+      return questions.length > 0 ? ((correctCount / questions.length) * 100).toFixed(2) : 0;
+    }
+
+    // 模态框相关函数
+    function showModal(id) {
+      document.getElementById(id).style.display = 'block';
+      if(id === 'question-modal') {
+        populateQuestionList();
+        // 清空表单，设置操作类型为“新增”
+        document.getElementById('operation-type').value = 'add';
+        document.getElementById('modal-question-number').value = '';
+        document.getElementById('modal-question-content').value = '';
+        document.getElementById('modal-question-type').value = '简答';
+        document.getElementById('modal-question-requirement').value = '';
+        document.getElementById('modal-question-answer').value = '';
+        document.getElementById('modal-question-options').value = '';
+        toggleOptionsContainer();
+      }
+    }
+    function hideModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    // 遍历已有题目并在模态框中展示
+    function populateQuestionList() {
+      const listContainer = document.getElementById('question-list');
+      listContainer.innerHTML = '';
+      if(questions.length === 0){
+        listContainer.innerHTML = '<p>暂无题目</p>';
+        return;
+      }
+      questions.forEach(q => {
+        // 此处 q.number 为数字，直接显示即可
+        const item = document.createElement('div');
+        item.className = 'question-item';
+        item.innerHTML = `<span>【${q.number}】 ${q.content.substring(0, 20)}...</span>
+          <div>
+            <button onclick="editQuestion(${q.number})">编辑</button>
+            <button onclick="deleteQuestion(${q.number})">删除</button>
+          </div>`;
+        listContainer.appendChild(item);
+      });
+    }
+
+    // 根据题号查找题目数据，并填充到编辑表单中，操作类型设为 update
+    function editQuestion(qNumber) {
+      const q = questions.find(item => Number(item.number) === Number(qNumber));
+      if(q) {
+        document.getElementById('operation-type').value = 'update';
+        document.getElementById('modal-question-number').value = q.number;
+        document.getElementById('modal-question-content').value = q.content;
+        document.getElementById('modal-question-type').value = q.type;
+        document.getElementById('modal-question-requirement').value = q.requirement;
+        document.getElementById('modal-question-answer').value = q.answer;
+        if(q.type === '选择') {
+          document.getElementById('modal-question-options').value = q.options.join(',');
+        } else {
+          document.getElementById('modal-question-options').value = '';
         }
+        toggleOptionsContainer();
+      }
+    }
 
-        button:hover {
-            background-color: #005a9e;
+    // 新增或修改题目（根据操作类型调用对应 API）
+    function submitQuestionForm() {
+      let operation = document.getElementById('operation-type').value;
+      // 注意：题号为纯数字，因此转换为数字
+      let number = parseInt(document.getElementById('modal-question-number').value.trim());
+      const content = document.getElementById('modal-question-content').value.trim();
+      const type = document.getElementById('modal-question-type').value;
+      const requirement = document.getElementById('modal-question-requirement').value.trim();
+      const answer = document.getElementById('modal-question-answer').value.trim();
+      let options = [];
+      if(type === '选择'){
+        const opts = document.getElementById('modal-question-options').value.trim();
+        if(opts){
+          options = opts.split(',').map(opt => opt.trim());
         }
+      }
+      if(isNaN(number) || !content || !answer) {
+        alert('题目编号（数字）、内容和正确答案为必填项！');
+        return;
+      }
+      const questionData = { number, content, type, requirement, answer };
+      if(type === '选择'){
+        questionData.options = options;
+      }
+      if(operation === 'add'){
+        fetch('/add_question', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(questionData)
+        })
+        .then(response => response.json())
+        .then(data => {
+          alert(data.message || '题目新增成功！');
+          hideModal('question-modal');
+          loadQuestions();
+        })
+        .catch(error => {
+          console.error('Error adding question:', error);
+          alert('新增题目时出错。');
+        });
+      } else if(operation === 'update'){
+        fetch('/update_question', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(questionData)
+        })
+        .then(response => response.json())
+        .then(data => {
+          if(data.error){
+            alert(data.error);
+          } else {
+            alert(data.message || '题目修改成功！');
+            hideModal('question-modal');
+            loadQuestions();
+          }
+        })
+        .catch(error => {
+          console.error('Error updating question:', error);
+          alert('修改题目时出错。');
+        });
+      }
+    }
 
-        #ask-ai-button {
-            display: none;
-            background-color: #4CAF50; /* 绿色按钮 */
+    // 删除题目（根据题号调用删除接口）
+    function deleteQuestion(qNumber) {
+      if(!confirm(`确定要删除题目 ${qNumber} 吗？`)) return;
+      fetch('/delete_question', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: qNumber })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if(data.error){
+          alert(data.error);
+        } else {
+          alert(data.message || '题目删除成功！');
+          loadQuestions();
+          populateQuestionList();
         }
-        #ask-ai-button:hover{
-            background-color: #367c39;
+      })
+      .catch(error => {
+        console.error('Error deleting question:', error);
+        alert('删除题目时出错。');
+      });
+    }
+
+    // 修改配置模态框
+    function submitConfigForm() {
+      const apiKey = document.getElementById('modal-api-key').value.trim();
+      const model = document.getElementById('modal-model').value.trim();
+      if(!apiKey || !model){
+        alert('API Key 和 模型名称为必填项！');
+        return;
+      }
+      const configData = { glm: { api_key: apiKey, model: model } };
+      fetch('/update_config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if(data.error){
+          alert(data.error);
+        } else {
+          alert(data.message || '配置修改成功！');
+          hideModal('config-modal');
         }
+      })
+      .catch(error => {
+        console.error('Error updating config:', error);
+        alert('修改配置时出错。');
+      });
+    }
 
-        #accuracy {
-            font-weight: bold;
-            color: #0078D7;
-        }
+    // 根据题目类型切换选项输入框的显示
+    function toggleOptionsContainer() {
+      const type = document.getElementById('modal-question-type').value;
+      if(type === '选择'){
+        document.getElementById('modal-options-container').style.display = 'block';
+      } else {
+        document.getElementById('modal-options-container').style.display = 'none';
+      }
+    }
 
-        .explanation {
-            margin-top: 20px;
-            text-align: left;
-        }
-
-        .options {
-            margin: 20px 0;
-        }
-
-        .option {
-            margin: 10px 0;
-        }
-
-        #loading {
-            display: none;
-            font-size: 1.2em;
-            color: #0078D7;
-            margin-top: 20px;
-        }
-
-        #error-message {
-            display: none;
-            font-size: 1.2em;
-            color: red;
-            margin-top: 10px;
-        }
-    </style>
-    <script>
-        let questions = [];
-        let currentQuestionIndex = 0;
-        let correctCount = 0;
-        let incorrectQuestions = [];
-
-        function loadQuestions() {
-            fetch('/get_questions')
-                .then(response => response.json())
-                .then(data => {
-                    questions = data;
-                    showQuestion();
-                });
-        }
-
-        function showQuestion() {
-            if (currentQuestionIndex < questions.length) {
-                const question = questions[currentQuestionIndex];
-                document.getElementById('question-number').textContent = `问题 ${question.number}`;
-                document.getElementById('question-content').textContent = question.content;
-                document.getElementById('result').textContent = '';
-                document.getElementById('explanation').textContent = '';
-                document.getElementById('loading').style.display = 'none'; // 隐藏加载提示
-                document.getElementById('error-message').style.display = 'none'; // 隐藏错误提示
-
-                if (question.type === '简答') {
-                    document.getElementById('user-answer').style.display = 'block';
-                    document.getElementById('options').style.display = 'none';
-                    document.getElementById('user-answer').value = ''; // 清除输入框内容
-                } else if (question.type === '选择') {
-                    document.getElementById('user-answer').style.display = 'none';
-                    document.getElementById('options').style.display = 'block';
-                    const optionsContainer = document.getElementById('options');
-                    optionsContainer.innerHTML = '';
-                    question.options.forEach(option => {
-                        const optionElement = document.createElement('div');
-                        optionElement.className = 'option';
-                        optionElement.innerHTML = `
-                            <input type="radio" name="option" value="${option}" id="option-${option}">
-                            <label for="option-${option}">${option}</label>
-                        `;
-                        optionsContainer.appendChild(optionElement);
-                    });
-                }
-            } else {
-                document.getElementById('question-number').textContent = '问答已完成';
-                document.getElementById('question-content').textContent = '';
-                document.getElementById('user-answer').style.display = 'none';
-                document.getElementById('options').style.display = 'none';
-                document.getElementById('submit-button').style.display = 'none';
-                document.getElementById('result').textContent = '感谢您完成本次问答！';
-                document.getElementById('accuracy').textContent = `正确率: ${calculateAccuracy()}%`; // 显示正确率
-                document.getElementById('ask-ai-button').style.display = 'block'; // 显示询问AI按钮
-            }
-        }
-
-        function submitAnswer() {
-            let userAnswer;
-            const question = questions[currentQuestionIndex];
-
-            if (question.type === '简答') {
-                userAnswer = document.getElementById('user-answer').value.trim();
-                if (userAnswer === '') {
-                    document.getElementById('error-message').textContent = '请输入您的答案';
-                    document.getElementById('error-message').style.display = 'block';
-                    return;
-                }
-            } else if (question.type === '选择') {
-                const selectedOption = document.querySelector('input[name="option"]:checked');
-                if (selectedOption) {
-                    userAnswer = selectedOption.value;
-                } else {
-                    alert('请选择一个选项');
-                    return;
-                }
-            }
-
-            document.getElementById('loading').style.display = 'block'; // 显示加载提示
-
-            fetch('/submit_answer', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ question: question, user_answer: userAnswer })
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('loading').style.display = 'none'; // 隐藏加载提示
-                document.getElementById('error-message').style.display = 'none'; // 隐藏错误提示
-                if (data.is_correct) {
-                    document.getElementById('result').textContent = '正确!';
-                    correctCount++;
-                } else {
-                    document.getElementById('result').textContent = '错误!';
-                    incorrectQuestions.push({ question: question, user_answer: userAnswer });
-                }
-                currentQuestionIndex++;
-                showQuestion();
-            })
-            .catch(error => {
-                document.getElementById('loading').style.display = 'none'; // 隐藏加载提示
-                console.error('Error submitting answer:', error);
-                document.getElementById('result').textContent = '提交答案时出错，请重试。';
-            });
-        }
-
-        function explainAnswer() {
-            if (incorrectQuestions.length === 0) {
-                document.getElementById('explanation').textContent = '没有错题需要解释。';
-                return;
-            }
-
-            document.getElementById('loading').style.display = 'block'; // 显示加载提示
-
-            fetch('/explain', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ incorrect_questions: incorrectQuestions })
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('loading').style.display = 'none'; // 隐藏加载提示
-                if (data.explanations) {
-                    let explanationsText = '';
-                    data.explanations.forEach(explanation => {
-                        explanationsText += `<div class="explanation"><strong>题目 ${explanation.question.number}:</strong> ${explanation.explanation}</div>`;
-                    });
-                    document.getElementById('explanation').innerHTML = explanationsText;
-                } else {
-                    document.getElementById('explanation').textContent = data.explanation;
-                }
-            })
-            .catch(error => {
-                document.getElementById('loading').style.display = 'none'; // 隐藏加载提示
-                console.error('Error explaining answers:', error);
-                document.getElementById('explanation').textContent = '获取解释时出错，请重试。';
-            });
-        }
-
-        function calculateAccuracy() {
-            return questions.length > 0 ? (correctCount / questions.length) * 100 : 0;
-        }
-
-        window.onload = loadQuestions;
-    </script>
+    window.onload = () => {
+      loadQuestions();
+      document.getElementById('modal-question-type').addEventListener('change', toggleOptionsContainer);
+    }
+  </script>
 </head>
 <body>
-    <div class="container">
-        <h1 id="question-number">问题 1</h1>
-        <p id="question-content">正在加载问题...</p>
-        <input type="text" id="user-answer" placeholder="请输入您的答案">
-        <div id="options" class="options"></div>
-        <button id="submit-button" onclick="submitAnswer()">提交</button>
-        <p id="result"></p>
-        <p id="loading">正在等待AI回应...</p>
-        <p id="error-message"></p>
-        <p id="explanation"></p>
-        <button id="ask-ai-button" onclick="explainAnswer()">询问 AI</button>
-        <p id="accuracy"></p>
+  <!-- 右上角管理按钮 -->
+  <div id="admin-buttons">
+    <button onclick="showModal('question-modal')">编辑试卷</button>
+    <button onclick="showModal('config-modal')">修改配置</button>
+  </div>
+  <div class="container">
+    <h1 id="question-number">问题 1</h1>
+    <p id="question-content">正在加载问题...</p>
+    <input type="text" id="user-answer" placeholder="请输入您的答案">
+    <div id="options" class="options"></div>
+    <button id="submit-button" onclick="submitAnswer()">提交</button>
+    <p id="result"></p>
+    <p id="loading">正在等待AI回应...</p>
+    <p id="error-message"></p>
+    <p id="explanation"></p>
+    <button id="ask-ai-button" onclick="explainAnswer()">询问 AI</button>
+    <p id="accuracy"></p>
+  </div>
+
+  <!-- 编辑试卷（题目）模态框 -->
+  <div id="question-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="hideModal('question-modal')">&times;</span>
+      <h2>编辑试卷</h2>
+      <!-- 显示已有题目列表 -->
+      <div id="question-list"></div>
+      <hr>
+      <form id="question-form">
+        <label>操作类型:</label>
+        <select id="operation-type">
+          <option value="add">新增题目</option>
+          <option value="update">修改题目</option>
+        </select>
+        <label>题目编号 (数字):</label>
+        <input type="text" id="modal-question-number" placeholder="题目编号">
+        <label>题目内容:</label>
+        <textarea id="modal-question-content" placeholder="题目内容"></textarea>
+        <label>题目类型:</label>
+        <select id="modal-question-type">
+          <option value="简答">简答</option>
+          <option value="选择">选择</option>
+        </select>
+        <label>题目要求:</label>
+        <input type="text" id="modal-question-requirement" placeholder="题目要求">
+        <label>正确答案:</label>
+        <input type="text" id="modal-question-answer" placeholder="正确答案">
+        <div id="modal-options-container" style="display: none;">
+          <label>选项 (用逗号分隔):</label>
+          <input type="text" id="modal-question-options" placeholder="选项1,选项2,...">
+        </div>
+        <button type="button" onclick="submitQuestionForm()">保存</button>
+      </form>
     </div>
+  </div>
+
+  <!-- 修改配置模态框 -->
+  <div id="config-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="hideModal('config-modal')">&times;</span>
+      <h2>修改配置</h2>
+      <form id="config-form">
+        <label>API Key:</label>
+        <input type="text" id="modal-api-key" placeholder="API Key">
+        <label>模型名称:</label>
+        <input type="text" id="modal-model" placeholder="模型名称">
+        <button type="button" onclick="submitConfigForm()">保存配置</button>
+      </form>
+      <p>注意：请您在修改配置后重启服务，否则无法生效！</p>
+    </div>
+  </div>
 </body>
 </html>

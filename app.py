@@ -27,6 +27,11 @@ def read_questions(file_path):
         questions = json.load(file)
         return questions
 
+# 写入题目文件
+def write_questions(file_path, questions):
+    with open(file_path, 'w', encoding='utf-8') as file:
+        json.dump(questions, file, ensure_ascii=False, indent=4)
+
 # 判断简答题答案是否正确
 def judge_answer(question, user_answer):
     if question['type'] == '简答':
@@ -66,7 +71,7 @@ def submit_to_chatgpt_explanation(question, user_answer):
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"Error in submit_to_chatgpt: {e}")
+        print(f"Error in submit_to_chatgpt_explanation: {e}")
         return "无法获取解释，请稍后再试。"
 
 @app.route('/')
@@ -78,7 +83,7 @@ def get_questions():
     questions = read_questions('exam_questions.json')
     # 随机排序选择题的选项
     for question in questions:
-        if question['type'] == '选择':
+        if question['type'] == '选择' and 'options' in question:
             random.shuffle(question['options'])
     return jsonify(questions)
 
@@ -114,9 +119,84 @@ def explain():
     else:
         return jsonify({'explanation': '没有错题需要解释。'})
 
+# 以下为题目增删改查的 API
+
+# 新增题目
+@app.route('/add_question', methods=['POST'])
+def add_question():
+    new_question = request.json
+    questions = read_questions('exam_questions.json')
+    questions.append(new_question)
+    write_questions('exam_questions.json', questions)
+    return jsonify({'message': '题目新增成功。'})
+
+# 修改题目（根据题目 number 匹配）
+@app.route('/update_question', methods=['PUT'])
+def update_question():
+    data = request.json
+    question_number = data.get('number')
+    if question_number is None:
+        return jsonify({'error': '必须提供题目的 number 字段'}), 400
+    try:
+        question_number = int(question_number)
+    except ValueError:
+        return jsonify({'error': '题目编号必须为数字'}), 400
+
+    questions = read_questions('exam_questions.json')
+    updated = False
+    for idx, question in enumerate(questions):
+        try:
+            q_num = int(question.get('number'))
+        except (ValueError, TypeError):
+            continue
+        if q_num == question_number:
+            questions[idx] = data
+            updated = True
+            break
+    if updated:
+        write_questions('exam_questions.json', questions)
+        return jsonify({'message': '题目修改成功。'})
+    else:
+        return jsonify({'error': '未找到对应的题目'}), 404
+# 删除题目（根据题目 number 匹配）
+@app.route('/delete_question', methods=['DELETE'])
+def delete_question():
+    data = request.json
+    question_number = data.get('number')
+    if question_number is None:
+        return jsonify({'error': '必须提供题目的 number 字段'}), 400
+    try:
+        question_number = int(question_number)
+    except ValueError:
+        return jsonify({'error': '题目编号必须为数字'}), 400
+    questions = read_questions('exam_questions.json')
+    new_questions = [q for q in questions if int(q.get('number')) != question_number]
+    if len(new_questions) == len(questions):
+        return jsonify({'error': '未找到对应的题目'}), 404
+    write_questions('exam_questions.json', new_questions)
+    return jsonify({'message': '题目删除成功。'})
+
+# 修改配置文件 API
+@app.route('/update_config', methods=['PUT'])
+def update_config():
+    data = request.json
+    updated = False
+    for section, keys in data.items():
+        if not config.has_section(section):
+            config.add_section(section)
+        for key, value in keys.items():
+            config.set(section, key, str(value))
+            updated = True
+    if updated:
+        with open('config.ini', 'w', encoding='utf-8') as configfile:
+            config.write(configfile)
+        return jsonify({'message': '配置文件修改成功。'})
+    else:
+        return jsonify({'error': '未提供有效的配置数据。'}), 400
+
 if __name__ == '__main__':
-    print("\nPlease make sure you have set up the config.ini file correctly.")
-    print("\nServer started, please visit http://localhost:5000 to use the app.")
-    print('\nIf you don\'t like the theme, you can change it in the /templates/index.html file.')
+    print("\n请确保已正确配置 config.ini 文件。")
+    print("\n服务器已启动，请访问 http://localhost:5000 使用应用。")
+    print("\n如果不喜欢当前主题，可在 /templates/index.html 文件中进行修改。")
     os.system('start http://localhost:5000')
     app.run(debug=True)

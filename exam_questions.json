@@ -1,24 +1,55 @@
 [
-  {
-    "number": "1",
-    "content": "冰变成水时是放出还是吸收热量？",
-    "answer": "吸收",
-    "requirement": "必须相同",
-    "type": "简答"
-  },
-  {
-    "number": "2",
-    "content": "中国人民共和国在哪一年成立？",
-    "options": ["1900", "1949", "1948", "1947", "1946"],
-    "answer": "1949",
-    "requirement": "选择_完全符合",
-    "type": "选择"
-  },
-  {
-    "number": "3",
-    "content": "相较于python，C有什么优势？",
-    "answer": "请根据用户回答自行判断，但必须有关于C语言的优势并且一定要比较",
-    "requirement": "包含关键字",
-    "type": "简答"
-  }
+    {
+        "number": 1,
+        "content": "Python语言中用于创建匿名函数的关键字是？",
+        "type": "选择",
+        "requirement": "完全符合",
+        "answer": "lambda",
+        "options": [
+            "def",
+            "lambda",
+            "func",
+            "anonymous"
+        ]
+    },
+    {
+        "number": 2,
+        "content": "简述TCP和UDP协议的主要区别",
+        "type": "简答",
+        "requirement": "至少列出三点差异",
+        "answer": "1. TCP面向连接，UDP无连接；2. TCP保证数据可靠性，UDP不保证；3. TCP有流量控制和拥塞控制，UDP没有；4. TCP传输速度较慢，UDP较快"
+    },
+    {
+        "number": 3,
+        "content": "在SQL中，用于删除表的命令是？",
+        "type": "选择",
+        "requirement": "完全符合",
+        "answer": "DROP TABLE",
+        "options": [
+            "DELETE TABLE",
+            "REMOVE TABLE",
+            "DROP TABLE",
+            "TRUNCATE TABLE"
+        ]
+    },
+    {
+        "number": 4,
+        "content": "描述快速排序算法的基本思想",
+        "type": "简答",
+        "requirement": "包含分治策略和基准值选择",
+        "answer": "通过选定基准值将数组分为小于基准和大于基准的两部分，递归地对子数组进行相同操作，最终合并得到有序序列"
+    },
+    {
+        "number": 5,
+        "content": "HTTPS协议默认使用的端口号是？",
+        "type": "选择",
+        "requirement": "完全符合",
+        "answer": "443",
+        "options": [
+            "80",
+            "8080",
+            "443",
+            "22"
+        ]
+    }
 ]
